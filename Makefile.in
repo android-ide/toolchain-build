@@ -311,10 +311,16 @@ BINUTILS_CONFIG_ARGS+= --with-cloog=${CLOOG_DIR} --with-isl=${ISL_DIR} --with-is
 # links to the static C++ runtime to avoid depending on the host version
 ifneq ($(host_os),darwin)
 BINUTILS_CONFIG_ARGS+= \
-	'--with-host-libstdcxx=-static-libgcc \
-	 -Wl,-Bstatic,-lstdc++,-Bdynamic -lm' \
-	 --with-gold-ldflags='-static-libgcc -static-libstdc++' \
+	'--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm' \
          --enable-install-libbfd
+ifneq ($(cur_host),$(cur_build))
+# static link to avoid dependencies on libwinpthread-1.dll in mingw
+BINUTILS_CONFIG_ARGS+= \
+	 --with-gold-ldflags='-static-libgcc -static-libstdc++ -static'
+else
+BINUTILS_CONFIG_ARGS+= \
+	 --with-gold-ldflags='-static-libgcc -static-libstdc++'
+endif
 else
 # In darwin ld doesn't allow both -static and -dynamic.  Instead, we rely on explicit
 # "-isysroot $(mac_sdk_root) -mmacosx-version-min=$(mac_sdk_version)" to establish
