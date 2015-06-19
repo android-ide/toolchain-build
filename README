@@ -1,6 +1,6 @@
 This is the top-level of the new Android GNU toolchain.  It is designed so
 that tools in the GNU toolchain and their different versions can be
-dropped into the Android toolchain easily.
+dropped into the Androind toolchain easily.
 
 1. Supported platforms.
 
