@@ -237,11 +237,17 @@ all: build
 ifeq ($(ENABLE_GRAPHITE),yes)
 build: install-host-cloog
 endif
+ifeq ($(DISABLE_GDB_BUILD),yes)
+build: build-target-binutils build-target-gcc
+
+install: install-target-binutils install-target-gcc
+else
 build: build-target-binutils build-target-gcc \
 	build-target-gdb
 
 install: install-target-binutils install-target-gcc \
 	install-target-gdb
+endif
 
 # To support canadian cross build we need to build build->target toolchain
 # as well as final host->target toolchain.
@@ -310,9 +316,15 @@ BINUTILS_CONFIG_ARGS+= --with-cloog=${CLOOG_DIR} --with-isl=${ISL_DIR} --with-is
 	--disable-ppl-version-check --disable-cloog-version-check --disable-isl-version-check $(CLOOG_BACKEND)
 # links to the static C++ runtime to avoid depending on the host version
 ifneq ($(host_os),darwin)
+ifneq ($(BUILD_ONLY_STATIC_EXECUTABLES),)
+BINUTILS_CONFIG_ARGS+= \
+	'--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm' \
+         --enable-install-libbfd --enable-plugins=no
+else
 BINUTILS_CONFIG_ARGS+= \
 	'--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm' \
          --enable-install-libbfd
+endif
 ifneq ($(cur_host),$(cur_build))
 # static link to avoid dependencies on libwinpthread-1.dll in mingw
 BINUTILS_CONFIG_ARGS+= \
@@ -343,10 +355,16 @@ BINUTILS_CONFIG_ARGS += --enable-gold=both/ld
 endif
 endif
 endif
+ifneq ($(BUILD_ONLY_STATIC_EXECUTABLES),)
+LIBTOOL_LDFLAGS="-all-static"
+else
+LIBTOOL_LDFLAGS=
+endif
 stmp-config-target-binutils: config.status stmp-install-host-ppl stmp-install-host-isl $(canadian_stmp)
 	([ -d ${BINUTILS_VERSION} ] || \
 	  mkdir ${BINUTILS_VERSION}) && \
 	($(canadian_env) \
+ 	 export LIBTOOL_LDFLAGS="$(LIBTOOL_LDFLAGS)" ; \
 	 cd ${BINUTILS_VERSION} ; \
 	 $(call find-package-srcdir, ${BINUTILS_VERSION})/configure \
 	  $(BINUTILS_CONFIG_ARGS)) && \
@@ -425,9 +443,15 @@ GCC_CONFIG_ARGS += --with-cloog=${CLOOG_DIR} --with-isl=${ISL_DIR} --with-ppl=${
 	--disable-ppl-version-check --disable-cloog-version-check --disable-isl-version-check $(CLOOG_BACKEND)
 # links to the static C++ runtime to avoid depending on the host version
 ifneq ($(host_os),darwin)
+ifneq ($(BUILD_ONLY_STATIC_EXECUTABLES),)
+GCC_CONFIG_ARGS += \
+	'--with-host-libstdcxx=-static-libgcc \
+	 -Wl,-Bstatic,-lstdc++,-lm'
+else
 GCC_CONFIG_ARGS += \
 	'--with-host-libstdcxx=-static-libgcc \
 	 -Wl,-Bstatic,-lstdc++,-Bdynamic -lm'
+endif
 else
 # In darwin ld doesn't allow both -static and -dynamic.  Instead, we rely on explicit
 # "-isysroot $(mac_sdk_root) -mmacosx-version-min=$(mac_sdk_version)" to establish
